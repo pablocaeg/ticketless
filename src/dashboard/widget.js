@@ -197,6 +197,7 @@
   let isOpen = false;
   let isBusy = false;
   let ticketN = 0;
+  const chatHistory = [];
 
   function showWelcome() {
     let html = `<div class="tl-welcome">
@@ -356,6 +357,7 @@
     sendBtn.disabled = true;
 
     addUserBubble(msg);
+    chatHistory.push({ role: 'user', text: msg });
 
     const ticketId = `w-${++ticketN}-${Date.now()}`;
     const shown = new Set();
@@ -394,7 +396,7 @@
           id: ticketId,
           source: 'chat',
           subject: msg.slice(0, 80),
-          body: msg + (cfg.userName ? `\n\nContext: I am ${cfg.userName}` + (cfg.userId ? ` (user id ${cfg.userId})` : '') + '. When looking up my schedule, use my name not a numeric id. Sign off as "Support Team" (never use placeholders like [Your Name]).' : ''),
+          body: (chatHistory.length > 1 ? 'Conversation so far:\n' + chatHistory.slice(0, -1).map(m => (m.role === 'user' ? 'User' : 'Agent') + ': ' + m.text.slice(0, 300)).join('\n') + '\n\nNew message: ' + msg : msg) + (cfg.userName ? '\n\nContext: I am ' + cfg.userName + '. When looking up my schedule, use my name not a numeric id. Sign off as "Support Team" (never use placeholders like [Your Name]).' : ''),
           customerEmail: cfg.userEmail || 'chat@user',
           customerId: cfg.userId || undefined,
           metadata: {},
@@ -412,10 +414,12 @@
       if (resolution.action === 'escalate') {
         addEscalation(resolution.escalationReason || 'Escalated to a human agent');
         if (resolution.investigationSummary) {
+          chatHistory.push({ role: 'agent', text: resolution.investigationSummary });
           const bubble = addAgentBubble();
           await typeIntoBubble(bubble, resolution.investigationSummary);
         }
       } else if (resolution.reply) {
+        chatHistory.push({ role: 'agent', text: resolution.reply });
         const bubble = addAgentBubble();
         await typeIntoBubble(bubble, resolution.reply);
       } else {

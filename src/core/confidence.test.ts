@@ -31,13 +31,21 @@ describe("groundConfidence", () => {
     expect(adjustedConfidence).toBe(0.9);
   });
 
-  it("caps confidence when no tools were called", () => {
+  it("caps confidence when no tools were called and confidence is high", () => {
     const { adjustedConfidence, checks } = groundConfidence(
       mockSynthesis({ confidence: 0.95 }),
       []
     );
-    expect(adjustedConfidence).toBeLessThanOrEqual(0.4);
+    expect(adjustedConfidence).toBeLessThanOrEqual(0.7);
     expect(checks.find((c) => c.name === "no_investigation")?.passed).toBe(false);
+  });
+
+  it("allows moderate confidence without tools for conversational messages", () => {
+    const { adjustedConfidence } = groundConfidence(
+      mockSynthesis({ confidence: 0.7, answer: "Hi! Let me know if you need help with anything." }),
+      []
+    );
+    expect(adjustedConfidence).toBe(0.7);
   });
 
   it("caps confidence when all tools errored", () => {
