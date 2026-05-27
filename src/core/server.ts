@@ -168,6 +168,10 @@ export class TicketlessServer {
         return json(res, 200, { status: "ok" });
       case "GET /dashboard":
         return this.serveDashboard(res);
+      case "GET /chat":
+        return this.serveChat(res);
+      case "GET /widget.js":
+        return this.serveWidget(res);
       default:
         return json(res, 404, { error: "Not found" });
     }
@@ -176,8 +180,8 @@ export class TicketlessServer {
   private checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
     const url = req.url ?? "";
 
-    // Dashboard and health don't require auth
-    if (url === "/dashboard" || url === "/health") return true;
+    // Dashboard, chat, widget, and health don't require auth
+    if (url === "/dashboard" || url === "/chat" || url === "/widget.js" || url === "/health") return true;
 
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.slice(7) !== this.config.apiKey) {
@@ -323,6 +327,33 @@ export class TicketlessServer {
     } catch {
       res.writeHead(500, { "Content-Type": "text/plain" });
       res.end("Dashboard not found");
+    }
+  }
+
+  private serveChat(res: ServerResponse): void {
+    try {
+      const htmlPath = resolve(__dirname, "..", "dashboard", "chat.html");
+      const html = readFileSync(htmlPath, "utf-8");
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(html);
+    } catch {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("Chat not found");
+    }
+  }
+
+  private serveWidget(res: ServerResponse): void {
+    try {
+      const jsPath = resolve(__dirname, "..", "dashboard", "widget.js");
+      const js = readFileSync(jsPath, "utf-8");
+      res.writeHead(200, {
+        "Content-Type": "application/javascript",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(js);
+    } catch {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("Widget not found");
     }
   }
 }

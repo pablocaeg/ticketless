@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospital Support — Ticketless</title>
+<style>
+  :root {
+    --bg: #f8f9fb;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-dim: #6b7280;
+    --accent: #4f46e5;
+    --accent-light: #eef2ff;
+    --green: #059669;
+    --green-bg: #ecfdf5;
+    --yellow: #d97706;
+    --yellow-bg: #fffbeb;
+    --red: #dc2626;
+    --radius: 12px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .sep { width: 1px; height: 20px; background: var(--border); }
+  .subtitle { font-size: 13px; color: var(--text-dim); }
+  .status-badge {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--green-bg); color: var(--green);
+    font-size: 11px; font-weight: 600;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .chat-container {
+    flex: 1; max-width: 720px; width: 100%; margin: 0 auto;
+    display: flex; flex-direction: column; padding: 24px 16px 0;
+  }
+
+  .messages {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+    padding-bottom: 16px;
+  }
+
+  .msg {
+    max-width: 85%; display: flex; flex-direction: column; gap: 4px;
+  }
+  .msg.user { align-self: flex-end; }
+  .msg.agent { align-self: flex-start; }
+
+  .msg-header {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-dim); padding: 0 4px;
+  }
+  .msg.user .msg-header { text-align: right; }
+
+  .bubble {
+    padding: 12px 16px; border-radius: var(--radius); font-size: 14px; line-height: 1.6;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  .msg.user .bubble {
+    background: var(--accent); color: white; border-bottom-right-radius: 4px;
+  }
+  .msg.agent .bubble {
+    background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px;
+  }
+
+  .msg-meta {
+    font-size: 10px; color: var(--text-dim); padding: 0 4px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .msg.user .msg-meta { justify-content: flex-end; }
+
+  .investigation {
+    background: var(--accent-light); border: 1px solid #c7d2fe; border-radius: var(--radius);
+    padding: 10px 14px; font-size: 12px; max-width: 85%; align-self: flex-start;
+  }
+  .investigation-title {
+    font-weight: 700; color: var(--accent); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .investigation-step {
+    color: #4338ca; padding: 2px 0; font-family: var(--mono); font-size: 11px;
+  }
+
+  .escalation {
+    background: var(--yellow-bg); border: 1px solid #fde68a; border-radius: var(--radius);
+    padding: 10px 14px; font-size: 12px; max-width: 85%; align-self: flex-start;
+  }
+  .escalation-title { font-weight: 700; color: var(--yellow); }
+
+  .typing {
+    align-self: flex-start; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    display: none; gap: 4px; align-items: center;
+  }
+  .typing.active { display: flex; }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim);
+    animation: bounce 1.4s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+  .input-area {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 16px; position: sticky; bottom: 0;
+  }
+  .input-row {
+    max-width: 720px; margin: 0 auto;
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .input-row textarea {
+    flex: 1; resize: none; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 14px; font-size: 14px; font-family: var(--font);
+    line-height: 1.5; min-height: 44px; max-height: 120px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .input-row textarea:focus { border-color: var(--accent); }
+  .input-row button {
+    padding: 10px 20px; border-radius: var(--radius); border: none;
+    background: var(--accent); color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+  }
+  .input-row button:hover { opacity: 0.9; }
+  .input-row button:disabled { opacity: 0.4; cursor: default; }
+
+  .presets {
+    max-width: 720px; margin: 12px auto 0; display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .preset {
+    padding: 5px 10px; border-radius: 16px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 11px; color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .preset:hover { border-color: var(--accent); color: var(--accent); }
+
+  .welcome {
+    text-align: center; padding: 60px 20px; color: var(--text-dim);
+  }
+  .welcome h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+  .welcome p { font-size: 14px; max-width: 400px; margin: 0 auto; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">ticketless</div>
+    <div class="sep"></div>
+    <div class="subtitle">Hospital Support Agent</div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <span>Agent online</span>
+    </div>
+  </header>
+
+  <div class="chat-container">
+    <div class="messages" id="messages">
+      <div class="welcome">
+        <h2>Hospital Scheduling Support</h2>
+        <p>Ask about your shifts, check exchange options, or verify compliance with labor regulations.</p>
+      </div>
+    </div>
+    <div class="typing" id="typing">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <textarea id="input" placeholder="Type your question..." rows="1" autofocus></textarea>
+      <button id="send" onclick="sendMessage()">Send</button>
+    </div>
+    <div class="presets">
+      <button class="preset" onclick="usePreset(this)">Can I swap my Tuesday morning for a night shift?</button>
+      <button class="preset" onclick="usePreset(this)">What exchanges are open right now?</button>
+      <button class="preset" onclick="usePreset(this)">Is my schedule compliant with Spanish law?</button>
+      <button class="preset" onclick="usePreset(this)">Show me Alice's schedule</button>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const typingEl = document.getElementById('typing');
+let ticketCounter = 0;
+let busy = false;
+
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+
+function usePreset(btn) {
+  inputEl.value = btn.textContent;
+  inputEl.focus();
+}
+
+function addMessage(role, text, meta) {
+  const welcome = messagesEl.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  let html = `<div class="msg-header">${role === 'user' ? 'You' : 'Support Agent'}</div>`;
+  html += `<div class="bubble">${escapeHtml(text)}</div>`;
+
+  if (meta) {
+    const parts = [];
+    if (meta.confidence) parts.push(`confidence: ${meta.confidence}`);
+    if (meta.duration) parts.push(`${meta.duration}ms`);
+    if (meta.tools && meta.tools.length) parts.push(`tools: ${meta.tools.join(', ')}`);
+    if (parts.length) html += `<div class="msg-meta">${parts.join(' · ')}</div>`;
+  }
+
+  div.innerHTML = html;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function addInvestigation(steps) {
+  const div = document.createElement('div');
+  div.className = 'investigation';
+  let html = '<div class="investigation-title"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg> Investigating</div>';
+  for (const step of steps) {
+    html += `<div class="investigation-step">${escapeHtml(step)}</div>`;
+  }
+  div.innerHTML = html;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addEscalation(reason) {
+  const div = document.createElement('div');
+  div.className = 'escalation';
+  div.innerHTML = `<div class="escalation-title">Escalated to manager</div><div style="margin-top:4px;color:#92400e">${escapeHtml(reason)}</div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || busy) return;
+
+  busy = true;
+  sendBtn.disabled = true;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  addMessage('user', text);
+  typingEl.classList.add('active');
+
+  const ticketId = `chat-${++ticketCounter}-${Date.now()}`;
+
+  try {
+    const res = await fetch(`${API}/api/ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: ticketId,
+        source: 'chat',
+        subject: text.slice(0, 80),
+        body: text + '\n\nContext: I am Alice (user id 1), a nurse at a Spanish hospital. My jurisdiction is ES.',
+        customerEmail: 'alice@hospital.es',
+        customerId: '1',
+        metadata: {},
+      }),
+    });
+
+    const data = await res.json();
+
+    // If async, poll for completion
+    if (data.status === 'queued') {
+      const resolution = await pollForResult(ticketId);
+      showResult(ticketId, resolution);
+    } else {
+      // Sync: result is the resolution directly
+      showResult(ticketId, data);
+    }
+  } catch (err) {
+    typingEl.classList.remove('active');
+    addMessage('agent', 'Sorry, the support agent is unavailable. Please try again later.');
+  }
+
+  busy = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+async function pollForResult(ticketId) {
+  while (true) {
+    await new Promise(r => setTimeout(r, 500));
+    const res = await fetch(`${API}/api/ticket/status?ticketId=${ticketId}`);
+    const data = await res.json();
+    if (data.status === 'completed' || data.status === 'error') {
+      return data.resolution;
+    }
+  }
+}
+
+async function showResult(ticketId, resolution) {
+  typingEl.classList.remove('active');
+
+  // Fetch audit trail to show investigation steps
+  try {
+    const auditRes = await fetch(`${API}/api/audit?ticketId=${ticketId}`);
+    const auditData = await auditRes.json();
+    const toolCalls = (auditData.entries || [])
+      .filter(e => e.step === 'tool_call')
+      .map(e => e.detail);
+    if (toolCalls.length > 0) {
+      addInvestigation(toolCalls);
+    }
+  } catch {}
+
+  if (!resolution) {
+    addMessage('agent', 'Something went wrong processing your request.');
+    return;
+  }
+
+  if (resolution.action === 'escalate') {
+    addEscalation(resolution.escalationReason || 'Requires human review');
+    if (resolution.investigationSummary) {
+      addMessage('agent', resolution.investigationSummary, {
+        tools: resolution.toolsUsed,
+        duration: resolution.durationMs,
+      });
+    }
+  } else if (resolution.reply) {
+    addMessage('agent', resolution.reply, {
+      confidence: resolution.confidence,
+      tools: resolution.toolsUsed,
+      duration: resolution.durationMs,
+    });
+  }
+}
+</script>
+</body>
+</html>
