@@ -1,0 +1,12 @@
+services:
+  ticketless:
+    build: .
+    ports:
+      - "3100:3100"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TICKETLESS_PORT=3100
+      - TICKETLESS_CONFIDENCE_THRESHOLD=0.75
+      - DATABASE_URL=${DATABASE_URL:-}
+      - TICKETLESS_ALLOWED_TABLES=${TICKETLESS_ALLOWED_TABLES:-}
+    restart: unless-stopped
