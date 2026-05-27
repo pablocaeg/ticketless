@@ -22,15 +22,16 @@ export function groundConfidence(
   const checks: ConfidenceCheck[] = [];
   let adjustedConfidence = synthesis.confidence;
 
-  // 1. No tools were called → cap at 0.4
-  if (findings.length === 0) {
+  // 1. No tools were called — only penalize if the LLM claims high confidence
+  //    For greetings/small talk, the LLM correctly skips tools and gives a direct answer.
+  if (findings.length === 0 && synthesis.confidence > 0.8) {
     checks.push({
       name: "no_investigation",
       passed: false,
       penalty: 0,
-      reason: "No tools were called during investigation",
+      reason: "High confidence claimed without calling any tools",
     });
-    adjustedConfidence = Math.min(adjustedConfidence, 0.4);
+    adjustedConfidence = Math.min(adjustedConfidence, 0.7);
   }
 
   // 2. All tool calls errored → cap at 0.3

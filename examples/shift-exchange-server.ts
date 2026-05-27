@@ -35,10 +35,10 @@ const llm = new OpenAIProvider(
 );
 
 const audit = new InMemoryAuditLog();
-const gate = new ConfidenceGate(0.6);
+const gate = new ConfidenceGate(0.5);
 
 const agent = new Agent(llm, audit, gate, {
-  confidenceThreshold: 0.6,
+  confidenceThreshold: 0.5,
   maxToolCalls: 8,
   maxInvestigationRounds: 3,
   escalationRules: [],

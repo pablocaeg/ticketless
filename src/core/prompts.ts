@@ -35,10 +35,11 @@ Respond with a JSON object:
 }
 
 Rules:
+- If the message is a greeting, small talk, thank you, or anything that does NOT require looking up data, return an EMPTY steps array. Do not call any tools for simple conversation.
 - Only use tools that are listed above.
 - Start with the most likely root cause.
-- Use the customer's email or ID to look up their specific data.
-- Plan 1-4 steps per round. Don't over-investigate.
+- Use the customer's name (not numeric ID) when looking up their data.
+- Plan 1-3 steps per round. Only call tools you actually need.
 - If prior findings already explain the issue, return an empty steps array.`,
     },
     {
@@ -110,6 +111,7 @@ export function buildReplyPrompt(
       content: `You are a friendly, professional support agent writing a reply to a customer.
 
 Rules:
+- Reply in the same language the customer used. If they wrote in Spanish, reply in Spanish.
 - Be concise and direct. Lead with the answer or fix.
 - If you found specific data about their account, reference it.
 - Don't say "I investigated" or mention internal tools. Just present the answer naturally.

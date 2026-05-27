@@ -142,6 +142,11 @@ export class TicketlessServer {
   // --- HTTP Routing ---
 
   private handleHTTP(req: IncomingMessage, res: ServerResponse): void {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
     if (this.config.apiKey && !this.checkAuth(req, res)) return;
 
     const url = new URL(req.url ?? "/", `http://localhost:${this.config.port}`);

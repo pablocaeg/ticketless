@@ -374,8 +374,7 @@
             .filter(e => e.step === 'tool_call' && !shown.has(e.detail) && !e.detail.includes('failed'))
             .map(e => { shown.add(e.detail); return humanize(e.detail) || e.detail; });
           if (calls.length) {
-            if (!stepsEl) stepsEl = addStepsContainer();
-            // Mark previous active step as done
+            if (!stepsEl) { stepsEl = addStepsContainer(); dots.remove(); }
             const prev = stepsEl.querySelector('.tl-step-active');
             if (prev) { prev.className = 'tl-step tl-step-done'; prev.querySelector('svg').outerHTML = ICONS.check; }
             calls.forEach(c => addStep(stepsEl, c, false));
@@ -395,7 +394,7 @@
           id: ticketId,
           source: 'chat',
           subject: msg.slice(0, 80),
-          body: msg + (cfg.userName ? `\n\nContext: I am ${cfg.userName}` + (cfg.userId ? ` (user id ${cfg.userId})` : '') + '.' : ''),
+          body: msg + (cfg.userName ? `\n\nContext: I am ${cfg.userName}` + (cfg.userId ? ` (user id ${cfg.userId})` : '') + '. When looking up my schedule, use my name not a numeric id. Sign off as "Support Team" (never use placeholders like [Your Name]).' : ''),
           customerEmail: cfg.userEmail || 'chat@user',
           customerId: cfg.userId || undefined,
           metadata: {},
