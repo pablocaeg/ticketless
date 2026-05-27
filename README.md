@@ -14,184 +14,26 @@ When a ticket comes in, Ticketless asks an LLM (Claude, GPT-4o, or a local model
 
 Three LLM calls per ticket: one to plan, one to analyze, one to write the reply.
 
-### The flow
-
 ```mermaid
-flowchart TB
-    subgraph INTAKE [" "]
-        direction LR
-        A1[Zendesk] --> R
-        A2[Intercom] --> R
-        A3[Freshdesk] --> R
-        A4[API / Webhook] --> R
-        R((Ticket\narrives))
-    end
+flowchart LR
+    T["Ticket"] --> P["LLM plans\nwhat to look up"]
+    P --> I["Query your\nsystems"]
+    I --> S["LLM analyzes\nfindings"]
+    S -->|not sure yet| P
+    S -->|confident| G{"Safety\nchecks"}
+    G -->|pass| R["Send reply"]
+    G -->|fail| E["Escalate\nto human"]
 
-    R --> PLAN
-
-    subgraph AGENT ["Investigation loop — runs until the agent is confident or hits the round limit"]
-        direction TB
-        PLAN["Plan\n─────────────────────\nLLM sees the ticket and the\navailable tools, picks what to query"]
-        
-        PLAN --> INVESTIGATE
-        
-        INVESTIGATE["Investigate\n─────────────────────\nRuns the actual tool calls\nagainst your systems\n\nDatabase · Billing · Logs · Docs"]
-        
-        INVESTIGATE --> SYNTHESIZE
-        
-        SYNTHESIZE["Synthesize\n─────────────────────\nLLM looks at everything\nthe tools returned and\ndecides if it has the answer"]
-        
-        SYNTHESIZE --> DECIDE{Enough\nevidence?}
-        DECIDE -- "Not yet" --> PLAN
-    end
-
-    DECIDE -- "Yes" --> GATES
-
-    subgraph GATES ["Safety checks before anything gets sent"]
-        direction TB
-        G1["Ground the confidence score\nagainst what the tools actually returned"]
-        G1 --> G2["Above the confidence threshold?"]
-        G2 --> G3["No sensitive keywords?"]
-        G3 --> G4["No custom escalation rules triggered?"]
-    end
-
-    G2 -- "Too low" --> ESC
-    G3 -- "Flagged" --> ESC
-    G4 -- "Rule hit" --> ESC
-
-    G4 -- "All clear" --> REPLY
-
-    REPLY["LLM writes the reply\nusing the actual data it found"]
-
-    REPLY --> DELIVER
-
-    DELIVER{How to deliver}
-    DELIVER -- "Auto-send" --> SEND["Reply via\nticket source"]
-    DELIVER -- "Review first" --> REVIEW["Human review queue"]
-    
-    ESC["Escalate to a person\nwith full investigation attached"]
-
-    style INTAKE fill:#1a1a2e,stroke:#6366f1,color:#e0e0e8
-    style AGENT fill:#1a1a2e,stroke:#6366f1,color:#e0e0e8
-    style GATES fill:#1a1a2e,stroke:#eab308,color:#e0e0e8
-    style PLAN fill:#2d2b55,stroke:#6366f1,color:#e0e0e8
-    style INVESTIGATE fill:#2d2b55,stroke:#6366f1,color:#e0e0e8
-    style SYNTHESIZE fill:#2d2b55,stroke:#6366f1,color:#e0e0e8
-    style REPLY fill:#1e3a2f,stroke:#22c55e,color:#e0e0e8
-    style SEND fill:#1e3a2f,stroke:#22c55e,color:#e0e0e8
-    style ESC fill:#3a2a1e,stroke:#eab308,color:#e0e0e8
-    style REVIEW fill:#1e2a3a,stroke:#3b82f6,color:#e0e0e8
-    style R fill:#2d2b55,stroke:#6366f1,color:#e0e0e8
+    style T fill:#f4f4f5,stroke:#a1a1aa,color:#18181b
+    style P fill:#ede9fe,stroke:#8b5cf6,color:#18181b
+    style I fill:#dcfce7,stroke:#22c55e,color:#18181b
+    style S fill:#ede9fe,stroke:#8b5cf6,color:#18181b
+    style G fill:#fef9c3,stroke:#ca8a04,color:#18181b
+    style R fill:#dcfce7,stroke:#22c55e,color:#18181b
+    style E fill:#fef9c3,stroke:#ca8a04,color:#18181b
 ```
 
-### What that looks like for a real ticket
-
-```mermaid
-sequenceDiagram
-    participant C as Customer
-    participant S as Zendesk
-    participant T as Ticketless
-    participant LLM as Claude / GPT-4o
-    participant DB as Your DB + Logs
-
-    C->>S: "I can't log into my account"
-    S->>T: New ticket
-
-    rect rgb(30, 30, 50)
-        Note over T,LLM: Planning
-        T->>LLM: Here's the ticket. Here are the tools you can use. What should I look up?
-        LLM-->>T: Look up the user by email, then check the auth logs
-    end
-
-    rect rgb(30, 30, 50)
-        Note over T,DB: Investigation
-        T->>DB: user_lookup(email: "alice@co.com")
-        DB-->>T: {status: "locked", failedAttempts: 5}
-        T->>DB: search_logs(service: "auth")
-        DB-->>T: 3 failed login entries in the last hour
-    end
-
-    rect rgb(30, 30, 50)
-        Note over T,LLM: Analysis
-        T->>LLM: Here's what the tools found. What's going on?
-        LLM-->>T: Account is locked after 5 bad attempts. Confidence: 0.92
-    end
-
-    rect rgb(50, 40, 20)
-        Note over T: Safety checks
-        T->>T: Confidence grounding: 2 tools returned real data. 0.92 checks out.
-        T->>T: 0.92 > 0.75 threshold. No blocked keywords. Good to go.
-    end
-
-    rect rgb(25, 45, 30)
-        Note over T,LLM: Writing the reply
-        T->>LLM: Write a response for the customer based on what we found
-        LLM-->>T: "Your account is temporarily locked..."
-    end
-
-    T->>S: Send reply, mark ticket solved
-    S->>C: Your account is temporarily locked after several failed login attempts. It'll unlock in about 15 minutes, or you can reset your password now.
-```
-
-The whole thing takes 3-8 seconds.
-
-### What connects to what
-
-```mermaid
-graph LR
-    subgraph Sources ["Where tickets come from"]
-        ZD[Zendesk]
-        IC[Intercom]
-        FD[Freshdesk]
-        WH[Webhook / API]
-    end
-
-    subgraph Core ["Ticketless"]
-        AG[Agent loop]
-        QU[Ticket queue]
-        RV[Review queue]
-        GT[Safety gates]
-        AU[Audit log]
-    end
-
-    subgraph LLMs ["LLM"]
-        CL[Claude]
-        OA[OpenAI / compatible]
-        OL[Ollama]
-    end
-
-    subgraph Tools ["Your systems"]
-        PG[Postgres]
-        MY[MySQL]
-        ST[Stripe]
-        HTTP[Any REST API]
-    end
-
-    subgraph Out ["Output"]
-        AR[Auto-reply]
-        HR[Human review]
-        ES[Escalation]
-    end
-
-    Sources --> AG
-    AG <--> LLMs
-    AG <--> Tools
-    AG --> GT
-    GT --> Out
-    QU --> AG
-    RV --> Out
-    AG --> AU
-
-    style Sources fill:#1e1e2e,stroke:#6366f1,color:#e0e0e8
-    style Core fill:#1e1e2e,stroke:#6366f1,color:#e0e0e8
-    style LLMs fill:#1e1e2e,stroke:#a855f7,color:#e0e0e8
-    style Tools fill:#1e1e2e,stroke:#22c55e,color:#e0e0e8
-    style Out fill:#1e1e2e,stroke:#eab308,color:#e0e0e8
-```
-
-### What the LLM can and can't do
-
-The LLM decides *what* to look at. The framework does the looking. The LLM never runs code, never touches your database directly, and never sends a reply without passing safety checks. All database queries are parameterized, read-only, and restricted to tables you explicitly allow.
+The LLM decides *what* to look up. The framework does the looking. The LLM never touches your database directly, never runs code, and never sends a reply without passing safety checks. All queries are parameterized, read-only, and restricted to tables you allow.
 
 ---
 
